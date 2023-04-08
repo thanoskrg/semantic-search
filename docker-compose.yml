@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  elasticsearch:
+    image: elasticsearch:8.7.0
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+    healthcheck:
+      interval: 10s
+      retries: 5
+      timeout: 30s
+      test: curl -s -f localhost:9200/_cluster/health || exit 1
+
+  kibana:
+    image: kibana:8.7.0
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - 5601:5601
+    networks:
+      - elastic
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: curl --write-out 'HTTP %{http_code}' -s -f --output /dev/null http://localhost:5601/api/status
+
+volumes:
+  esdata:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
